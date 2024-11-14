@@ -3,3 +3,12 @@
 
 # ignore .exe files
 *.exe
+
+# ignore logfile
+*.log
+
+# ignore jupyter
+*.ipynb
+
+# pycache
+*.pyc
