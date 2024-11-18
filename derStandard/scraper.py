@@ -27,6 +27,10 @@ def scrape_articles(logger, n=10):
     derStandard_collection = get_db_connection()
     # Liste der zu scrapenden URLs abrufen
     urls_to_scrape = list(derStandard_collection.find({'scraping_info.status': ''}, {'scraping_info.url': 1}))
+
+    if len(urls_to_scrape)==0:
+        urls_to_scrape = list(derStandard_collection.find({'scraping_info.status': 'error'}, {'scraping_info.url': 1}))
+
     logger.info(f"Anzahl der zu scrapenden URLs: {len(urls_to_scrape)}")
 
     # URLs gleichmäßig auf n Prozesse verteilen
@@ -48,14 +52,25 @@ def scrape_articles_chunk(urls_chunk):
     try:
         for url_dict in urls_chunk:
             full_url = url_dict['scraping_info']['url']
+
+            # liveticker
+            if full_url.startswith("https://www.derstandard.at/jetzt/livebericht"):
+                scraping_status(collection=derStandard_collection, status="skipped", url=full_url, exception_message="Skipping Liveticker", logger=logger)
+                continue
+
+            if "kreuzwortraetsel" in full_url:
+                scraping_status(collection=derStandard_collection, status="skipped", url=full_url, exception_message="Skipping Kreuzworträtsel", logger=logger)
+                continue
+
             logger.info(f"Prozess {pid} verarbeitet URL: {full_url}")
+
             try:
                 driver.set_page_load_timeout(10)
                 # Laden der Seite und Verarbeitung
                 try:
                     driver.get(full_url)
                 except TimeoutException:
-                    scraping_fail(url=full_url, exception_message='Timeout nach 10 Sekunden', logger=logger, derStandard_collection=derStandard_collection)
+                    scraping_status(url=full_url, status="error", exception_message='Timeout nach 10 Sekunden', logger=logger, collection=derStandard_collection)
                     continue
 
                 wait = WebDriverWait(driver, 10)
@@ -88,7 +103,7 @@ def scrape_articles_chunk(urls_chunk):
                 article_datetime = get_article_datetime(soup, logger)
 
                 if article_datetime is None or title is None:
-                    scraping_fail(url=full_url, exception_message='Fehlendes Datum oder Titel', logger=logger, derStandard_collection=derStandard_collection)
+                    scraping_status(url=full_url, status="error", exception_message='Fehlendes Datum oder Titel', logger=logger, collection=derStandard_collection)
                     continue
 
                 # Anzahl der Postings extrahieren
@@ -110,9 +125,16 @@ def scrape_articles_chunk(urls_chunk):
                     forum_comments, comments_warning = extract_forum_comments_normal(driver, logger)
 
                 # Status bestimmen
-                status = 'warning' if reactions_warning or comments_warning else 'success'
+                if reactions_warning and comments_warning:
+                    status = 'warning'
+                elif reactions_warning:
+                    status = 'warning (reactions)'
+                elif comments_warning:
+                    status = 'warning (comments)'
+                else:
+                    status = 'success'
 
-                # Daten vorbereiten gemäß neuer Struktur
+                # Daten vorbereiten
                 article_data = {
                     'article.title': title,
                     'article.subtitle': subtitle,
@@ -136,10 +158,10 @@ def scrape_articles_chunk(urls_chunk):
                 logger.info(f"Erfolgreich gescraped mit Status '{status}': {full_url} am {article_datetime}")
 
             except TimeoutException:
-                scraping_fail(url=full_url, exception_message='Timeout nach 10 Sekunden', logger=logger, derStandard_collection=derStandard_collection)
+                scraping_status(url=full_url, status="error", exception_message='Timeout nach 10 Sekunden', logger=logger, collection=derStandard_collection)
             except Exception as e:
                 exception_message = str(e)
-                scraping_fail(url=full_url, exception_message=exception_message, logger=logger, derStandard_collection=derStandard_collection)
+                scraping_status(url=full_url, status="error", exception_message=exception_message, logger=logger, collection=derStandard_collection)
                 logger.error(f"Fehler beim Verarbeiten von {full_url}: {e}", exc_info=True)
                 continue
     finally:
@@ -147,15 +169,16 @@ def scrape_articles_chunk(urls_chunk):
         logger.info("Browser erfolgreich geschlossen.")
         close_logger(logger)
 
-def scraping_fail(url, exception_message, logger, derStandard_collection):
-    current_date = datetime.datetime.now()
-    derStandard_collection.update_one(
+
+
+def scraping_status(collection, status, url, exception_message, logger):
+    collection.update_one(
         {'scraping_info.url': url},
         {
             '$set': {
-                'scraping_info.status': 'failed',
-                'scraping_info.download_datetime': current_date
+                'scraping_info.status': status,
+                'scraping_info.download_datetime': datetime.datetime.now()
             }
         }
     )
-    logger.warning(f"Artikel übersprungen (fehlende Daten): {url}")
+    logger.warning(f"{exception_message}: {url}")

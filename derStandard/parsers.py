@@ -124,23 +124,38 @@ def get_article_byline(soup, logger):
         logger.debug(f"{inspect.currentframe().f_back.f_code.co_name} Keine Artikel-Byline gefunden.")
     return article_byline
 
+
+
+
+
 def get_article_datetime(soup, logger):
-    time_tag = soup.find('time', class_='article-pubdate')
-    if time_tag:
-        if time_tag.has_attr('datetime'):
-            datetime_str = time_tag['datetime'].strip()
+    
+    time_elements = [
+        soup.select_one("p.article-pubdate time"),
+        soup.find('time', class_='article-pubdate')
+    ]
+
+    for time_element in time_elements:
+        if time_element:
+            # Try to get the 'datetime' attribute
+            datetime_str = time_element.get("datetime", "").strip() or time_element.get_text(strip=True)
             datetime_str = datetime_str.replace('\n', '').strip()
-        else:
-            datetime_str = time_tag.get_text(strip=True)
-        try:
-            article_datetime = datetime.datetime.fromisoformat(datetime_str)
-        except ValueError:
-            datetime_text = time_tag.get_text(strip=True)
-            article_datetime = dateparser.parse(datetime_text, languages=['de'])
-    else:
-        article_datetime = None
-        logger.debug(f"{inspect.currentframe().f_back.f_code.co_name} Kein Datum gefunden.")
-    return article_datetime
+
+            # parse the datetime string
+            try:
+                return datetime.datetime.fromisoformat(datetime_str)
+            except (TypeError, ValueError):
+                article_datetime = dateparser.parse(datetime_str, languages=['de'])
+                if article_datetime:
+                    return article_datetime
+
+    # Log if no datetime was found
+    logger.debug(f"{inspect.currentframe().f_back.f_code.co_name} Kein Datum gefunden.")
+    return None
+
+
+
+
 
 def get_posting_count(soup, full_url, logger):
     posting_count = None
