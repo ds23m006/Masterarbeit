@@ -29,26 +29,22 @@ def get_orf_entry_info(entry):
     return {"url": url, "document": document}
 
 def get_derstandard_entry_info(entry):
-    if hasattr(entry, 'id_detail') and 'attributes' in entry.id_detail:
-        if entry.id_detail.attributes.get('isPermaLink', 'false') == 'true':
-            url = entry.id
-            document = {
-                "scraping_info": {
-                    "url": url,
-                    "status": None,
-                    "download_datetime": None
-                },
-                "article": {
-                    "title": entry.get("title", "No Title")
-                }
-            }
-            return {"url": url, "document": document}
-    return None
+    url = entry.link
+    document = {
+        "scraping_info": {
+            "url": url,
+            "status": None,
+            "download_datetime": None
+        }
+    }
+    return {"url": url, "document": document}
 
 def process_feeds(rss_list, collection_name, get_entry_info):
     collection = get_db_connection(collection=collection_name)
-    documents = []
+    entry_info_list = []
     processed_urls = set()
+
+    # Sammeln aller Einträge
     for rss_url in rss_list:
         feed = feedparser.parse(rss_url)
         for entry in feed.entries:
@@ -58,11 +54,25 @@ def process_feeds(rss_list, collection_name, get_entry_info):
                 if url in processed_urls:
                     continue
                 processed_urls.add(url)
-                if not collection.find_one({"scraping_info.url": url}):
-                    documents.append(entry_info['document'])
-    if documents:
-        collection.insert_many(documents)
-        print(f"{len(documents)} Dokumente wurden erfolgreich in die Collection '{collection_name}' eingefügt.")
+                entry_info_list.append(entry_info)
+
+    if not entry_info_list:
+        print(f"Keine neuen Dokumente zum Einfügen für '{collection_name}' gefunden.")
+        return
+
+    # Abfrage, um vorhandene URLs zu ermitteln
+    urls = [entry_info['url'] for entry_info in entry_info_list]
+    existing_urls = set()
+    if urls:
+        existing_docs = collection.find({"scraping_info.url": {"$in": urls}}, {"scraping_info.url": 1})
+        existing_urls = set(doc["scraping_info"]["url"] for doc in existing_docs)
+
+    # Filtern der neuen Dokumente
+    new_documents = [entry_info['document'] for entry_info in entry_info_list if entry_info['url'] not in existing_urls]
+
+    if new_documents:
+        collection.insert_many(new_documents)
+        print(f"{len(new_documents)} Dokumente wurden erfolgreich in die Collection '{collection_name}' eingefügt.")
     else:
         print(f"Keine neuen Dokumente zum Einfügen für '{collection_name}' gefunden.")
 
