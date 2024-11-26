@@ -27,10 +27,11 @@ def scrape_articles(logger, n=10):
     derStandard_collection = get_db_connection()
     # Liste der zu scrapenden URLs abrufen
     urls_to_scrape = list(derStandard_collection.find({'scraping_info.status': ''}, {'scraping_info.url': 1}))
-
+    
     if len(urls_to_scrape)==0:
+        logger.info(f"Keine Files die ungescraped sind... Erneutes scrapen der status=error Files")
         urls_to_scrape = list(derStandard_collection.find({'scraping_info.status': 'error'}, {'scraping_info.url': 1}))
-
+    
     logger.info(f"Anzahl der zu scrapenden URLs: {len(urls_to_scrape)}")
 
     # URLs gleichmäßig auf n Prozesse verteilen
@@ -54,7 +55,7 @@ def scrape_articles_chunk(urls_chunk):
             full_url = url_dict['scraping_info']['url']
 
             # liveticker
-            if full_url.startswith("https://www.derstandard.at/jetzt/livebericht"):
+            if not full_url.startswith("https://www.derstandard.at/story"):
                 scraping_status(collection=derStandard_collection, status="skipped", url=full_url, exception_message="Skipping Liveticker", logger=logger)
                 continue
 

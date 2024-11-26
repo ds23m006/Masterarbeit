@@ -12,3 +12,5 @@
 
 # pycache
 *.pyc
+
+*.xlsx
