@@ -11,7 +11,7 @@ from utils import expand_shadow_element
 def parse_posting(posting_element, logger):
     # Parst ein einzelnes <dst-posting>-Element und extrahiert die relevanten Daten.
     try:
-        # Extrahiere den Autor
+        # Autor
         author = "Unbekannter Benutzer"
         try:
             usermenu = posting_element.find_element(By.CSS_SELECTOR, "dst-posting--user button")
@@ -21,7 +21,7 @@ def parse_posting(posting_element, logger):
         except NoSuchElementException:
             pass
 
-        # Extrahiere die Anzahl der Follower
+        # Anzahl der Follower
         user_followers = 0
         try:
             followers_div = posting_element.find_element(By.CSS_SELECTOR, "dst-posting--user button div[title]")
@@ -34,7 +34,7 @@ def parse_posting(posting_element, logger):
         except ValueError:
             logger.warning(f"{inspect.currentframe().f_back.f_code.co_name} Ungültige Follower-Zahl: '{followers_text}'.")
 
-        # Extrahiere das Datum und die Uhrzeit
+        # Datum und Uhrzeit
         datetime_obj = None
         try:
             time_tag = posting_element.find_element(By.CSS_SELECTOR, "time[data-date]")
@@ -43,7 +43,7 @@ def parse_posting(posting_element, logger):
         except NoSuchElementException:
             pass
 
-        # Extrahiere den Inhalt des Postings
+        # Inhalt des Postings
         content = ""
         try:
             content_div = posting_element.find_element(By.CSS_SELECTOR, "div.posting--content")
@@ -55,7 +55,7 @@ def parse_posting(posting_element, logger):
         except NoSuchElementException:
             pass
 
-        # Extrahiere Upvotes und Downvotes
+        # Upvotes und Downvotes
         upvotes = 0
         downvotes = 0
         try:
@@ -69,15 +69,15 @@ def parse_posting(posting_element, logger):
         except ValueError:
             logger.warning(f"{inspect.currentframe().f_back.f_code.co_name} Ungültige Upvote/Downvote-Zahlen gefunden.")
 
-        # Extrahiere Parent-Kommentar-ID (falls Antwort)
+        # Parent-Kommentar-ID
         parent_id = posting_element.get_attribute("data-parentpostingid")
         reply_on_comment = int(parent_id) if parent_id and parent_id.isdigit() else None
 
-        # Extrahiere Kommentar-ID
+        # Kommentar-ID
         commentID = posting_element.get_attribute("data-postingid")
         commentID = int(commentID) if commentID and commentID.isdigit() else None
 
-        # Erstelle das Kommentar-Dictionary
+        # Kommentar-dict
         comment = {
             'commentID': commentID,
             'author': author,
@@ -89,7 +89,6 @@ def parse_posting(posting_element, logger):
             'reply_on_comment': reply_on_comment,
             'replies': []
         }
-
         return comment
 
     except Exception as e:
@@ -103,13 +102,13 @@ def get_article_byline(soup, logger):
     article_byline = {}
     article_byline_tag = soup.find('div', class_='article-byline')
     if article_byline_tag:
-        # Storylabels extrahieren
+        # Storylabels
         storylabels_tag = article_byline_tag.find('div', class_='storylabels')
         if storylabels_tag:
             storylabels = storylabels_tag.get_text(strip=True)
             article_byline['storylabels'] = storylabels
 
-        # Article origins extrahieren
+        # Article origins
         article_origins_tag = article_byline_tag.find('div', class_='article-origins')
         if article_origins_tag:
             article_origins = article_origins_tag.get_text(strip=True)
@@ -151,9 +150,6 @@ def get_article_datetime(soup, logger):
     return None
 
 
-
-
-
 def get_posting_count(soup, full_url, logger):
     posting_count = None
     try:
@@ -179,7 +175,7 @@ def get_posting_count(soup, full_url, logger):
     return posting_count
 
 def get_paragraph_texts(soup, full_url, logger):
-    # Artikelinhalt extrahieren
+    # Artikelinhalt
     paragraph_texts = None
     try:
         article_body = soup.find('div', class_='article-body')
@@ -203,7 +199,7 @@ def get_paragraph_texts(soup, full_url, logger):
 
             logger.debug(f"{inspect.currentframe().f_back.f_code.co_name} Unerwünschte Elemente aus Artikeltext entfernt.")
 
-            # Paragraphen extrahieren und in Liste umwandeln
+            # Paragraphen und in Liste umwandeln
             paragraphs = article_body.find_all('p')
             paragraph_texts = [p.get_text() for p in paragraphs]
             logger.debug(f"{inspect.currentframe().f_back.f_code.co_name} Extrahierte Paragraphen: {len(paragraph_texts)} in {full_url}")
@@ -236,13 +232,13 @@ def extract_reactions(driver, logger):
             except NoSuchElementException:
                 reaction_name = button.text.replace(str(count), '').strip()
             reactions[reaction_name] = count
-        return reactions, False  # Kein Warnhinweis notwendig
+        return reactions, False
     except NoSuchElementException:
         logger.warning("Reaktionen konnten nicht extrahiert werden.")
-        return None, True  # Warnhinweis setzen
+        return None, True 
     except Exception as e:
         logger.error(f"Fehler beim Extrahieren der Reaktionen: {e}", exc_info=True)
-        return None, True  # Warnhinweis setzen
+        return None, True
     
 
 
@@ -285,13 +281,13 @@ def extract_forum_comments_normal(driver, logger, max_comments=70):
                         if reply_comment:
                             current_parent['replies'].append(reply_comment)
                             count += 1
-        return comments, False  # Kein Warnhinweis notwendig
+        return comments, False
     except NoSuchElementException:
         logger.warning("Forum-Elemente nicht gefunden.")
-        return [], True  # Warnhinweis setzen
+        return [], True
     except Exception as e:
         logger.error(f"Fehler beim Extrahieren der Forenkommentare: {e}", exc_info=True)
-        return [], True  # Warnhinweis setzen
+        return [], True
     
 
 def extract_forum_comments_alternative(driver, logger, max_comments=70):
@@ -306,7 +302,7 @@ def extract_forum_comments_alternative(driver, logger, max_comments=70):
 
     if not postings:
         logger.warning("Forum-Elemente nicht gefunden.")
-        return comments_data, True  # Warnhinweis setzen
+        return comments_data, True
 
 
     for posting in postings[:max_comments]:
@@ -321,7 +317,7 @@ def extract_forum_comments_alternative(driver, logger, max_comments=70):
             reply_on_comment = posting.get('data-parentpostingid')
             reply_on_comment = int(reply_on_comment) if reply_on_comment and reply_on_comment.isdigit() else None
 
-            # Datum und Uhrzeit des Kommentars extrahieren
+            # Datum und Uhrzeit des Kommentars
             datetime_tag = posting.find('span', class_='js-timestamp')
             if datetime_tag and datetime_tag.text:
                 datetime_str = datetime_tag.text.strip()
@@ -329,20 +325,18 @@ def extract_forum_comments_alternative(driver, logger, max_comments=70):
             else:
                 datetime_obj = None 
 
-            # Kommentarüberschrift extrahieren
+            # Kommentarüberschrift
             comment_header_tag = posting.find('h4', class_='upost-title')
             comment_header = comment_header_tag.text.strip() if comment_header_tag else ""
 
-            # Kommentartext extrahieren
+            # Kommentartext
             comment_body = posting.find('div', class_='upost-text')
             comment_text = comment_body.get_text(separator=' ', strip=True) if comment_body else ""
 
-            # Upvotes extrahieren
+            # Upvotes und Downvotes
             upvotes_tag = posting.find('span', class_='js-ratings-positive-count')
-            upvotes = int(upvotes_tag.text.strip()) if upvotes_tag and upvotes_tag.text.isdigit() else 0
-
-            # Downvotes extrahieren
             downvotes_tag = posting.find('span', class_='js-ratings-negative-count')
+            upvotes = int(upvotes_tag.text.strip()) if upvotes_tag and upvotes_tag.text.isdigit() else 0
             downvotes = int(downvotes_tag.text.strip()) if downvotes_tag and downvotes_tag.text.isdigit() else 0
 
             # Anzahl der Follower des Nutzers extrahieren

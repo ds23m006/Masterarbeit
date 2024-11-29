@@ -6,11 +6,11 @@ from pymongo import MongoClient
 import os
 import logging
 
-# Logger einrichten
+# Logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Verbindung zur MongoDB herstellen
+# MongoDB Verbindung
 def get_db_connection(collection_name='ORF'):
     USERNAME = os.getenv("MONGODB_USER")
     PASSWORD = os.getenv("MONGODB_PWD")
@@ -19,11 +19,11 @@ def get_db_connection(collection_name='ORF'):
     collection = db[collection_name]
     return collection
 
-# Scraper-Funktion
+
 def scrape_article(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
 
-    # Artikel-Div finden
+    # Artikel-Div
     article = soup.find("div", id="ss-shunter")
     if not article:
         logger.warning("Artikelinhalt nicht gefunden.")
@@ -46,7 +46,7 @@ def scrape_article(html_content):
     byline_tag = article.find('div', class_='byline')
     autor = byline_tag.get_text(strip=True) if byline_tag else None
 
-    # Veröffentlichungsdatum (Pubdate)
+    # Pubdate
     pubdate = None
     pubdate_div = article.find('div', class_='story-meta-dates')
     if pubdate_div:
@@ -66,7 +66,7 @@ def scrape_article(html_content):
         paragraphs = story_content.find_all('p')
         text_paragraphs = [p.get_text() for p in paragraphs]
 
-    # Ergebnis zusammenstellen
+    # Document erstellen
     article_data = {
         'autor': autor,
         'pubdate': pubdate,
@@ -85,7 +85,7 @@ async def fetch(session, url, collection):
                 html_content = await response.text()
                 article_data = scrape_article(html_content)
                 if article_data:
-                    # Update das Dokument in der MongoDB
+                    # Update das Dokument
                     result = collection.update_one(
                         {'scraping_info.url': url},
                         {
@@ -101,7 +101,7 @@ async def fetch(session, url, collection):
                     else:
                         logger.warning(f"Dokument nicht gefunden oder nicht aktualisiert: {url}")
                 else:
-                    # Wenn das Scrapen fehlschlägt
+                    # scraping error
                     collection.update_one(
                         {'scraping_info.url': url},
                         {
@@ -114,7 +114,7 @@ async def fetch(session, url, collection):
                     logger.error(f"Scraping fehlgeschlagen für {url}")
                 return
             else:
-                # Update den Status bei HTTP-Fehlern
+                # Update den Status
                 collection.update_one(
                     {'scraping_info.url': url},
                     {
@@ -140,35 +140,42 @@ async def fetch(session, url, collection):
         logger.error(f"Fehler bei {url}: {e}")
         return
 
+
 # Hauptfunktion
 async def main():
     # Verbindung zur MongoDB herstellen
     collection = get_db_connection('ORF')
 
-    # URLs abrufen, die noch nicht gescraped wurden
-    urls_to_scrape = list(collection.find({'scraping_info.status': None}, {'scraping_info.url': 1, '_id': 0}))
+    # get URLs
+    urls_to_scrape = list(collection.find({
+        '$or': [
+            {'scraping_info.status': {'$in': ['', None]}},
+            {'scraping_info.status': {'$exists': False}}
+        ]
+        }, {'scraping_info.url': 1}))
     urls = [doc['scraping_info']['url'] for doc in urls_to_scrape if 'scraping_info' in doc and 'url' in doc['scraping_info']]
 
     if not urls:
         logger.info("Keine URLs zum Scrapen gefunden.")
         return
-
     logger.info(f"{len(urls)} URLs zum Scrapen gefunden.")
 
     # Anzahl gleichzeitiger Verbindungen begrenzen
-    max_conns = 20 
+    max_conns=20
     semaphore = asyncio.Semaphore(max_conns)
 
-    # Asynchrone HTTP-Session erstellen
+    # Asynchrone HTTP-Session
     async with aiohttp.ClientSession() as session:
         tasks = [fetch_with_semaphore(semaphore, session, url, collection) for url in urls]
         await asyncio.gather(*tasks)
 
-# Hilfsfunktion zur Verwendung des Semaphores
+
+# Hilfsfunktion Semaphores
 async def fetch_with_semaphore(semaphore, session, url, collection):
     async with semaphore:
         await fetch(session, url, collection)
 
-# Ausführen
+
+# Main Funktion
 if __name__ == "__main__":
     asyncio.run(main())
