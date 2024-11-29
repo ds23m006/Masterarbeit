@@ -125,9 +125,6 @@ def get_article_byline(soup, logger):
     return article_byline
 
 
-
-
-
 def get_article_datetime(soup, logger):
     
     time_elements = [

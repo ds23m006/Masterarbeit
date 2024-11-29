@@ -26,7 +26,12 @@ from utils import expand_shadow_element
 def scrape_articles(logger, n=10):
     derStandard_collection = get_db_connection()
     # Liste der zu scrapenden URLs abrufen
-    urls_to_scrape = list(derStandard_collection.find({'scraping_info.status': ''}, {'scraping_info.url': 1}))
+    urls_to_scrape = list(derStandard_collection.find({
+        '$or': [
+            {'scraping_info.status': {'$in': ['', None]}},
+            {'scraping_info.status': {'$exists': False}}
+        ]
+        }, {'scraping_info.url': 1}))
     
     if len(urls_to_scrape)==0:
         logger.info(f"Keine Files die ungescraped sind... Erneutes scrapen der status=error Files")

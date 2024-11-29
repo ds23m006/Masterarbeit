@@ -9,10 +9,7 @@
 
 Wenn keine sitemap gefunden werden konnte, dann muss man im Archiv über alle Seiten iterieren und von jedem Eintrag die URL abspeichern
 
-
 # Scrape pages
 
 for url in URLs:
     scrape(page(url))
-
-
