@@ -77,7 +77,7 @@ Der gesamte ETL-Prozess umfasst:
 
 Eine besondere Herausforderung ergibt sich beim ORF. Laut dem **Angebotskonzept für news.ORF.at** gibt es kein Nachrichtenarchiv:
 
-> *„Die Berichterstattung gibt insgesamt einen Überblick über das aktuelle Nachrichtengeschehen, ohne dabei vertiefend zu sein oder ein Nachrichtenarchiv zu beinhalten.“*  
+> *„Die Berichterstattung gibt insgesamt einen Überblick über das aktuelle Nachrichtengeschehen, ohne dabei vertiefend zu sein oder ein Nachrichtenarchiv zu beinhalten. \[...\] Ein Nachrichtenarchiv wird nicht angeboten.“*  
 > (Quelle: [ORF Angebotskonzept](https://zukunft.orf.at/rte/upload/2023/veroeffentlichungen/veroeffentlichungen_010124/angebotskonzept_news_vom_15-10-2023.pdf))
 
 Das bedeutet, dass kontinuierliches Scraping erforderlich ist, um Artikel und Inhalte rechtzeitig zu erfassen, bevor sie von der Website entfernt werden.
