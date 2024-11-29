@@ -73,14 +73,24 @@ Der gesamte ETL-Prozess umfasst:
 
 ## Herausforderungen
 
-- **Dynamische Inhalte:**  
-  Viele Websites laden Inhalte nur bei Benutzerinteraktion. Selenium wird hier eingesetzt, obwohl es ressourcenintensiver ist.
-  
-- **Kein Nachrichtenarchiv (z. B. ORF):**  
-  Einige Plattformen bieten keine historischen Daten. Hier ist kontinuierliches Scraping notwendig, um Artikel zeitnah zu speichern.
-  
-- **Rate-Limiting und Blocker:**  
-  Um Sperren zu vermeiden, werden User-Agents gewechselt, Requests gedrosselt und Proxys verwendet.
+### Kein Nachrichtenarchiv (z. B. ORF)
+
+Eine besondere Herausforderung ergibt sich beim ORF. Laut dem **Angebotskonzept für news.ORF.at** gibt es kein Nachrichtenarchiv:
+
+> *„Die Berichterstattung gibt insgesamt einen Überblick über das aktuelle Nachrichtengeschehen, ohne dabei vertiefend zu sein oder ein Nachrichtenarchiv zu beinhalten.“*  
+> (Quelle: [ORF Angebotskonzept](https://zukunft.orf.at/rte/upload/2023/veroeffentlichungen/veroeffentlichungen_010124/angebotskonzept_news_vom_15-10-2023.pdf))
+
+Das bedeutet, dass kontinuierliches Scraping erforderlich ist, um Artikel und Inhalte rechtzeitig zu erfassen, bevor sie von der Website entfernt werden.
+
+Für historische Artikel kann man über die URL die Parameter variieren, um unterschiedliche Artikel zu bekommen. Auch wenn auf diese Weise nicht alle Artikel erfasst werden können, lässt sich dennoch ein großer Teil abdecken.
+
+### Dynamische Inhalte
+
+Viele Websites laden Inhalte nur bei Benutzerinteraktion. Selenium wird hier eingesetzt, obwohl es ressourcenintensiver ist.
+
+### Rate-Limiting und Blocker
+
+Um Sperren zu vermeiden, werden User-Agents gewechselt, Requests gedrosselt und Proxys verwendet.
 
 ---
 
