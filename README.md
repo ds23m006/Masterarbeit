@@ -1,4 +1,4 @@
-# README: Web Scraping für Masterarbeit
+# Data Engineering für die Masterarbeit: Web Scraping 
 
 ## Projektübersicht
 
