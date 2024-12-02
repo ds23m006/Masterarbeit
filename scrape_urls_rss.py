@@ -39,6 +39,19 @@ def get_derstandard_entry_info(entry):
     }
     return {"url": url, "document": document}
 
+
+def get_kurier_entry_info(entry):
+    url = entry.link
+    document = {
+        "scraping_info": {
+            "url": url,
+            "status": None,
+            "download_datetime": None
+        }
+    }
+    return {"url": url, "document": document}
+
+
 def process_feeds(rss_list, collection_name, get_entry_info):
     collection = get_db_connection(collection=collection_name)
     entry_info_list = []
@@ -75,6 +88,8 @@ def process_feeds(rss_list, collection_name, get_entry_info):
         print(f"{len(new_documents)} Dokumente wurden erfolgreich in die Collection '{collection_name}' eingefügt.")
     else:
         print(f"Keine neuen Dokumente zum Einfügen für '{collection_name}' gefunden.")
+
+
 
 # ORF RSS Feeds
 orf_rss_list = [
@@ -114,8 +129,10 @@ derstandard_rss_list = [
     'https://www.derstandard.at/rss/recht',
 ]
 
-# Verarbeitung der ORF Feeds
-process_feeds(orf_rss_list, collection_name='ORF', get_entry_info=get_orf_entry_info)
+# Kurier RSS
+kurier_rss_list = ['https://kurier.at/xml/rss']
 
-# Verarbeitung der derStandard Feeds
+# Verarbeitung
+process_feeds(orf_rss_list, collection_name='ORF', get_entry_info=get_orf_entry_info)
 process_feeds(derstandard_rss_list, collection_name='derStandard', get_entry_info=get_derstandard_entry_info)
+process_feeds(kurier_rss_list, collection_name='Kurier', get_entry_info=get_kurier_entry_info)
