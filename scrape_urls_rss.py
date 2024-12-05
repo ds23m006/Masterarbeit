@@ -2,6 +2,8 @@ import feedparser
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
+import argparse
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -131,8 +133,17 @@ derstandard_rss_list = [
 
 # Kurier RSS
 kurier_rss_list = ['https://kurier.at/xml/rss']
+feeds_to_process = sys.argv[1:]  # Liste der Argumente nach dem Skriptnamen
 
-# Verarbeitung
-process_feeds(orf_rss_list, collection_name='ORF', get_entry_info=get_orf_entry_info)
-process_feeds(derstandard_rss_list, collection_name='derStandard', get_entry_info=get_derstandard_entry_info)
-process_feeds(kurier_rss_list, collection_name='Kurier', get_entry_info=get_kurier_entry_info)
+if not feeds_to_process:
+    feeds_to_process = ['ORF', 'derStandard', 'Kurier']
+
+# Verarbeitung basierend auf den Argumenten
+if 'ORF' in feeds_to_process:
+    process_feeds(orf_rss_list, collection_name='ORF', get_entry_info=get_orf_entry_info)
+
+if 'derStandard' in feeds_to_process:
+    process_feeds(derstandard_rss_list, collection_name='derStandard', get_entry_info=get_derstandard_entry_info)
+
+if 'Kurier' in feeds_to_process:
+    process_feeds(kurier_rss_list, collection_name='Kurier', get_entry_info=get_kurier_entry_info)
