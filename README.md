@@ -40,7 +40,7 @@ Die extrahierten Daten werden in einer **MongoDB** gespeichert. Für jede Quelle
   Verbindet das Projekt sicher mit der MongoDB-Datenbank über Umgebungsvariablen.
 
 - **`driver.py`**  
-  Initialisiert einen Selenium-Webdriver mit Optionen wie headless Browsing, User-Agent-Spoofing und Popup-Handling.
+  Initialisiert einen Selenium-Webdriver mit Optionen wie headless Browsing und User-Agents.
 
 - **`logger_setup.py`**  
   Richtet ein flexibles Logger-System ein, das Logs sowohl in der Konsole als auch in Dateien speichert (z. B. `scraper.log`).
@@ -90,7 +90,7 @@ Viele Websites laden Inhalte nur bei Benutzerinteraktion. Selenium wird hier ein
 
 ### Rate-Limiting und Blocker
 
-Um Sperren zu vermeiden, werden User-Agents gewechselt, Requests gedrosselt und Proxys verwendet.
+Die robots.txt Dateien werden stets respektiert. Es werden keine Seiten gescraped, wenn es explizit verboten wird.   
 
 ---
 
