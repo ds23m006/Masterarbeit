@@ -2,7 +2,7 @@ import time
 from logger_setup import setup_logger
 from scraper import scrape_articles
 
-def main(n=3):
+def main(n=5):
     """
     Startpunkt des Krone-Scrapers.
     n = Anzahl der parallelen Prozesse

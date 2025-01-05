@@ -37,7 +37,7 @@ def parse_krone_article(soup, logger):
 
     # 2) Titel
     try:
-        title_div = soup.find('div', {'data-nodeid': '10555-94f40e7b'})
+        title_div = soup.find('div', {'class':'box col-xs-12 c_title', 'data-nodeid': re.compile(r'^\d+-94f40e7b$')})
         if title_div:
             data['article.title'] = title_div.get_text(strip=True)
         else:
@@ -49,7 +49,7 @@ def parse_krone_article(soup, logger):
 
     # 3) Kicker + Datum
     try:
-        kicker_pubdate_div = soup.find('div', {'data-nodeid': '10555-9b995933'})
+        kicker_pubdate_div = soup.find('div', {'class':'box col-xs-12 c_breadcrumbs marginbottom-30', 'data-nodeid': re.compile(r'^\d+-9b995933$')})
         if kicker_pubdate_div:
             # Kicker
             kicker_el = kicker_pubdate_div.find(class_='bc__link bc__link--shortened')
@@ -74,7 +74,7 @@ def parse_krone_article(soup, logger):
 
     # 4) Subtitle
     try:
-        subtitle_div = soup.find('div', {'data-nodeid': '10555-a75a93ac'})
+        subtitle_div = soup.find('div', {'class':'box col-xs-12 c_lead', 'data-nodeid': re.compile(r'^\d+-a75a93ac$')})
         if subtitle_div:
             data['article.subtitle'] = subtitle_div.get_text(strip=True)
         else:
@@ -85,7 +85,7 @@ def parse_krone_article(soup, logger):
 
     # 5) Autor(en)
     try:
-        authors_div = soup.find('div', {'data-nodeid': '10555-ac9231da'})
+        authors_div = soup.find('div', {'class':'box col-xs-12 c_authorline', 'data-nodeid': re.compile(r'^\d+-ac9231da$')})
         if authors_div:
             authors = []
             for author_el in authors_div.findAll('div', class_='al__author'):
@@ -100,7 +100,7 @@ def parse_krone_article(soup, logger):
     # 6) Artikel-Text (nur, wenn kein Premium-Artikel)
     if not data['features.premium']:
         try:
-            content_div = soup.find('div', {'data-nodeid': '10555-8d883f15'})
+            content_div = soup.find('div', {'class':'box col-xs-12 c_content', 'data-nodeid': re.compile(r'^\d+-8d883f15$')})
             if content_div:
                 paragraphs = []
                 for box in content_div.findChildren(attrs={'class': 'box col-xs-12 c_tinymce'}):
@@ -270,7 +270,6 @@ def extract_comment_data(wrapper):
         "reply_on_comment": None,
         "replies": []
     }
-
 
 def parse_vote_count(span_tag):
     if not span_tag or not span_tag.text.strip():
