@@ -98,6 +98,7 @@ def parse_posting(posting_element, logger):
 def parse_comment_datetime(datetime_str):
     return dateparser.parse(datetime_str, languages=['de'])
 
+
 def get_article_byline(soup, logger):
     article_byline = {}
     article_byline_tag = soup.find('div', class_='article-byline')
@@ -111,8 +112,12 @@ def get_article_byline(soup, logger):
         # Article origins
         article_origins_tag = article_byline_tag.find('div', class_='article-origins')
         if article_origins_tag:
-            article_origins = article_origins_tag.get_text(strip=True)
-            article_byline['article_origins'] = article_origins
+            # Alle <span class="simple">-Tags finden
+            authors = article_origins_tag.find_all('span', class_='simple')
+            # Liste mit den bereinigten Texten erstellen
+            article_origins_list = [author.get_text(strip=True) for author in authors]
+
+            article_byline['article_origins'] = article_origins_list
         else:
             # Fallback für einfachen Autorentext
             author_simple = article_byline_tag.find('span', class_='simple')

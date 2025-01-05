@@ -5,7 +5,7 @@ from scraper import scrape_articles
 def main(n=3):
     """
     Startpunkt des Krone-Scrapers.
-    n = Anzahl der parallelen Prozesse (z.B. 10).
+    n = Anzahl der parallelen Prozesse
     """
     logger = setup_logger(log_file='krone_scraper_main.log')
     while True:

@@ -13,8 +13,12 @@
 # pycache
 *.pyc
 
+# ignore Excel Files
 *.xlsx
 
+# ignore GitHub Link
 github.txt
 
+# ignore Images
 .jpg
+
