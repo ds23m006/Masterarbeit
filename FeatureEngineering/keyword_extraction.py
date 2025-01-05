@@ -59,15 +59,19 @@ def build_author_to_docs(conn):
     logger = logging.getLogger(__name__)
 
     try:
+        author_path = 'article.author.article_origins' if conn.name == "derStandard" else 'article.author'
         cursor_all = conn.find(
             {},
-            {"_id": 1, "article.author.article_origins": 1},
+            {"_id": 1, author_path: 1},
             no_cursor_timeout=True
         )
 
         for doc in cursor_all:
             doc_id = doc["_id"]
-            origins_value = doc.get("article", {}).get("author", {}).get("article_origins", [])
+            if conn.name == 'derStandard':
+                origins_value = doc.get("article", {}).get("author", {}).get("article_origins", [])
+            else:
+                origins_value = doc.get("article", {}).get("author", {})
 
             if isinstance(origins_value, str):
                 origins_list = [origins_value]
@@ -130,7 +134,11 @@ def run_keyword_extraction(conn, batch_size=1000):
             article_data = doc.get("article", {})
 
             # (A) author_article_count
-            origins = article_data.get("author", {}).get("article_origins", [])
+            if conn.name == 'derStandard':
+                origins = article_data.get("author", {}).get("article_origins", [])
+            else:
+                origins = article_data.get("author", {})
+                
             if isinstance(origins, str):
                 origins = [origins]
             elif not isinstance(origins, list):

@@ -5,10 +5,6 @@ import logging
 def run_basic_feature_engineering(conn, batch_size=1000):
     """
     Bestimmt features.paragraph_count und features.body_word_count für Dokumente in 'conn'.
-
-    Parameters:
-        conn (pymongo.collection.Collection): Verbindung zur MongoDB-Collection.
-        batch_size (int): Anzahl der Dokumente pro Bulk-Update.
     """
     logger = logging.getLogger(__name__)
     filter_query = {

@@ -26,7 +26,7 @@ def scrape_articles(logger, n=10):
     urls_to_scrape = list(krone_collection.find(
     {
         '$or': [
-            {'scraping_info.status': {'$nin': ['success', 'skipped']}},
+            {'scraping_info.status': {'$nin': ['success', 'skipped', 'warning (missing title)', 'warning (missing pubdate)']}},
             {'scraping_info.status': {'$exists': False}}
         ]
     },
@@ -138,9 +138,12 @@ def scrape_articles_chunk(urls_chunk):
                     logger.info("Premium-Artikel -> Keine Kommentare zugänglich.")
 
             # 6) Status bestimmen
-            if not article_data.get('article.title') or not article_data.get('article.pubdate'):
-                status = "error"
-                logger.warning(f"Kein Titel oder Datum für {full_url}, Status = error.")
+            if not article_data.get('article.title'):
+                status = "warning (missing title)"
+                logger.warning(f"Kein Titel {full_url}, Status = warning.")
+            elif not article_data.get('article.pubdate'):
+                status = "warning (missing pubdate)"
+                logger.warning(f"Kein Datum für {full_url}, Status = warning.")
             else:
                 status = "success"
 

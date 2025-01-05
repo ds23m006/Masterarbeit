@@ -143,7 +143,7 @@ def parse_krone_comment_section(driver, logger):
         driver.execute_script("arguments[0].scrollIntoView(true);", coral_container)
 
         # Warte auf das iFrame in #coral-container
-        iframe = WebDriverWait(driver, 10).until(
+        iframe = WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "#coral-container iframe"))
         )
 
