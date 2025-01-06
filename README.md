@@ -10,10 +10,10 @@ Dieses Projekt dient der Implementierung und Ausführung von Web-Scraping-Mechan
 
 Web-Scraping lässt sich in zwei Hauptmethoden unterteilen [1]:
 
-1. **Screen Scraping:** Daten werden aus HTML-Quelltexten mithilfe eines Parsers (z. B. BeautifulSoup) oder regulären Ausdrücken extrahiert. Diese Methode ist besonders bei unstrukturierten oder semistrukturierten Daten notwendig.
+1. **Screen Scraping:** Daten werden aus HTML-Quelltexten mithilfe eines Parsers (z. B. `BeautifulSoup`) oder regulären Ausdrücken extrahiert. Diese Methode ist besonders bei unstrukturierten oder semistrukturierten Daten notwendig.
 2. **API-Scraping:** Hierbei werden strukturierte Daten (z. B. JSON oder XML) über eine API abgefragt. APIs ermöglichen einen standardisierten und effizienten Zugriff auf Inhalte.
 
-In der Praxis wird API-Scraping bevorzugt, sofern APIs verfügbar sind. Für dynamische Inhalte, die über JavaScript geladen werden, kommen Tools wie Selenium oder Scrapy zum Einsatz, da herkömmliche HTTP-Bibliotheken wie `requests` hier nicht ausreichen. Aufgrund der höheren Performance wird dynamisches Scraping nur als letzter Ausweg genutzt.
+In der Praxis wird API-Scraping bevorzugt, sofern APIs verfügbar sind. Für dynamische Inhalte, die über JavaScript geladen werden, kommen Tools wie Selenium oder Scrapy zum Einsatz, da herkömmliche HTTP-Bibliotheken wie `requests` hier nicht ausreichen. Aufgrund der niedrigeren Performance wird dynamisches Screen Scraping nur als letzter Ausweg genutzt.
 
 ### URL-Ermittlung
 
@@ -21,11 +21,11 @@ Der erste Schritt im Web-Scraping besteht darin, relevante URLs zu finden. Dafü
 
 1. **Sitemap-Erkennung:** Überprüfung der `robots.txt` (z. B. [orf.at/robots.txt](https://orf.at/robots.txt)), um Verweise auf Sitemaps zu identifizieren. Sitemaps enthalten oft strukturierte Informationen über alle verfügbaren Seiten einer Website.
 2. **Archivsuche:** Wenn keine Sitemap vorhanden ist, werden Archive durchsucht. Dabei können URL-Parameter helfen, um Inhalte effizient zu iterieren.
-3. **Dynamisches Crawling:** Für Inhalte, die nur durch Scrollen geladen werden, wird Selenium eingesetzt.
+3. **Dynamisches Crawling:** Für Inhalte, die durch Nutzerinteraktionen (z.B. Scrollen) geladen werden, wird Selenium eingesetzt.
 
 ### Datenbankintegration
 
-Die extrahierten Daten werden in einer **MongoDB** gespeichert. Für jede Quelle wird eine eigene Collection in der Datenbank `newspapers` erstellt, um unterschiedliche Strukturen abzubilden. URLs werden mit den Attributen `scraping_info.status=None` und `scraping_info.download_datetime=None` initialisiert. Während des Scraping-Prozesses werden diese Felder aktualisiert, um den Fortschritt und Erfolg zu dokumentieren.
+Die extrahierten Daten werden in einer **MongoDB** gespeichert. Für jede Quelle wird eine eigene Collection in der Datenbank `newspapers` erstellt, um unterschiedliche Strukturen abzubilden. URLs werden mit den Attributen `scraping_info.status=null` und `scraping_info.download_datetime=null` initialisiert. Während des Scraping-Prozesses werden diese Felder aktualisiert, um den Fortschritt und Erfolg zu dokumentieren.
 
 ---
 
@@ -49,10 +49,10 @@ Die extrahierten Daten werden in einer **MongoDB** gespeichert. Für jede Quelle
   Hauptskript, das den Scraping-Prozess zyklisch ausführt. URLs werden aus der Datenbank geladen, verarbeitet und die Ergebnisse gespeichert.
 
 - **`scraper.py`**  
-  Beinhaltet die Kernlogik für das Scraping. Nutzt `aiohttp` für asynchrone HTTP-Anfragen und BeautifulSoup für die HTML-Analyse.
+  Beinhaltet die Kernlogik für das Scraping. Nutzt `aiohttp` für asynchrone HTTP-Anfragen und BeautifulSoup für die HTML-Analyse. Für Seiten, wo die Elemente dynamische geladen werden, wird `selenium` eingesetzt.
 
 - **`parsers.py`**  
-  Enthält spezifische Parser für Inhalte wie Artikel, Kommentare und Metadaten. Unterstützt die Verarbeitung verschachtelter Forenstrukturen.
+  Enthält spezifische Parser für Inhalte wie Artikel, Kommentare und Metadaten. Unterstützt die Verarbeitung verschachtelter Strukturen in den Diskussionsforen.
 
 ---
 
