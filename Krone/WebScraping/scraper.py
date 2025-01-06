@@ -24,16 +24,19 @@ def scrape_articles(logger, n=10):
 
     # URLs selektieren
     urls_to_scrape = list(krone_collection.find(
-    {
-        '$or': [
-            {'scraping_info.status': {'$nin': ['success', 'skipped', 'warning (missing title)', 'warning (missing pubdate)']}},
-            {'scraping_info.status': {'$exists': False}}
-        ]
-    },
-    {
-        'scraping_info.url': 1
-    }
-    ))
+        {
+            '$or': [
+                {'scraping_info.status': {'$nin': ['success', 'skipped', 'warning (missing title)', 'warning (missing pubdate)']}},
+                {'scraping_info.status': {'$exists': False}}
+            ]
+        },
+        {
+            'scraping_info.url': 1,
+            'scraping_info.status': 1  # status hinzufügen, um danach sortieren zu können
+        }
+    ).sort([
+        ('scraping_info.status', 1)  # null-Werte kommen zuerst
+    ]))
     
     if len(urls_to_scrape) == 0:
         logger.info("Keine neuen oder fehlerhaften URLs zu verarbeiten.")
@@ -87,12 +90,12 @@ def scrape_articles_chunk(urls_chunk):
                 logger.error(f"Fehler beim Laden der Seite: {e}", exc_info=True)
                 continue
 
-            time.sleep(3)
+            time.sleep(1.5)
 
             # 2) HTML parsen (BeautifulSoup)
             soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-            # 3) Artikel parsen (Titel, Kicker, Autor, Premium etc.)
+            # 3) Artikel parsen (Titel, Kicker, Autor, Paywall etc.)
             try:
                 article_data = parse_krone_article(soup, logger)
                 logger.debug("Artikel erfolgreich geparst.")
@@ -117,8 +120,8 @@ def scrape_articles_chunk(urls_chunk):
             # posting_count im Artikel-Dict speichern
             article_data['features.posting_count'] = posting_count
 
-            # 5) Kommentare parsen, nur wenn posting_count > 0 und kein Premium-Artikel
-            if posting_count > 0 and not article_data.get('features.premium'):
+            # 5) Kommentare parsen, nur wenn posting_count > 0 und kein paywall-Artikel
+            if posting_count > 0 and not article_data.get('features.paywall'):
                 try:
                     forum_comments = parse_krone_comment_section(driver, logger)
                     comments_count = len(forum_comments)
@@ -129,13 +132,13 @@ def scrape_articles_chunk(urls_chunk):
                     forum_comments = []
                     comments_count = 0
             else:
-                # Entweder 0 Kommentare oder Premium => kein Kommentar-Parsing
+                # Entweder 0 Kommentare oder paywall => kein Kommentar-Parsing
                 forum_comments = []
                 comments_count = 0
                 if posting_count == 0:
                     logger.info("Posting Count = 0 -> Keine Kommentare zum Parsen.")
-                elif article_data.get('features.premium'):
-                    logger.info("Premium-Artikel -> Keine Kommentare zugänglich.")
+                elif article_data.get('features.paywall'):
+                    logger.info("Paywall-Artikel -> Keine Kommentare zugänglich.")
 
             # 6) Status bestimmen
             if not article_data.get('article.title'):

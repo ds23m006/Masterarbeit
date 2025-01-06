@@ -5,14 +5,6 @@ import os
 def setup_logger(name=__name__, log_file='feature_engineering.log', level=logging.DEBUG):
     """
     Erstellt und konfiguriert einen Logger.
-
-    Parameters:
-        name (str): Name des Loggers.
-        log_file (str): Name der Log-Datei.
-        level (int): Log-Level (z.B. logging.DEBUG, logging.INFO).
-
-    Returns:
-        logger (logging.Logger): Konfigurierter Logger.
     """
     logger = logging.getLogger(name)
     logger.setLevel(level)

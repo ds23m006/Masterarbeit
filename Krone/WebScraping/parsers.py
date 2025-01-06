@@ -9,13 +9,13 @@ from selenium.common.exceptions import NoSuchElementException
 def parse_krone_article(soup, logger):
     """
     Parst die wichtigsten Meta-Infos aus einem Krone-Artikel:
-      - Premium-Erkennung
+      - Paywall-Erkennung
       - (Pre)Title, Kicker, Subtitle, Autor, Datum
-      - Artikeltext nur, falls kein Premium-Artikel
+      - Artikeltext nur, falls kein Paywall-Artikel
 
     Rückgabe: dict mit den Feldern:
       {
-        'features.premium': bool,
+        'features.paywall': bool,
         'article.title': str oder None,
         'article.kicker': str oder None,
         'article.subtitle': str oder None,
@@ -26,14 +26,14 @@ def parse_krone_article(soup, logger):
     """
     data = {}
 
-    # 1) Premium-Check
+    # 1) paywall-Check
     try:
-        premium_div = soup.find('div', id='paywall-content', attrs={'data-product': 'premium'})
-        is_premium = bool(premium_div)
-        data['features.premium'] = is_premium
+        paywall_div = soup.find('div', id='paywall-content', attrs={'data-product': 'paywall'})
+        is_paywall = bool(paywall_div)
+        data['features.paywall'] = is_paywall
     except Exception as e:
-        logger.error(f"[parse_krone_article] Fehler bei Premium-Check: {e}", exc_info=True)
-        data['features.premium'] = False
+        logger.error(f"[parse_krone_article] Fehler bei paywall-Check: {e}", exc_info=True)
+        data['features.paywall'] = False
 
     # 2) Titel
     try:
@@ -97,8 +97,8 @@ def parse_krone_article(soup, logger):
         logger.error(f"[parse_krone_article] Fehler beim Autor-Parsen: {e}", exc_info=True)
         data['article.author'] = None
 
-    # 6) Artikel-Text (nur, wenn kein Premium-Artikel)
-    if not data['features.premium']:
+    # 6) Artikel-Text (nur, wenn kein paywall-Artikel)
+    if not data['features.paywall']:
         try:
             content_div = soup.find('div', {'class':'box col-xs-12 c_content', 'data-nodeid': re.compile(r'^\d+-8d883f15$')})
             if content_div:
@@ -117,7 +117,7 @@ def parse_krone_article(soup, logger):
             data['article.text'] = []
     else:
         data['article.text'] = []
-        logger.info("[parse_krone_article] Premium-Artikel erkannt – Artikeltext wird nicht abgerufen.")
+        logger.info("[parse_krone_article] paywall-Artikel erkannt – Artikeltext wird nicht abgerufen.")
 
     return data
 

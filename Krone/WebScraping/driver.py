@@ -31,11 +31,11 @@ def configure_driver(headless=True):
     service = ChromeService(executable_path=CHROMEDRIVER_PATH)
     driver = wd.Chrome(service=service, options=chrome_options)
 
-    # Besuche die Startseite, um das Cookie-Popup zu schließen
+    # Öffne die Startseite, um das Cookie-Popup zu schließen
     driver.get(FRONTPAGE_URL)
     time.sleep(5)
     try:
-        # Beispiel-XPath für Cookie-Popup
+        # XPath für Cookie-Popup
         driver.find_element(By.XPATH, "/html/body/div[1]/div/div/div/div/div/div[2]/button[3]").click()
     except NoSuchElementException:
         print("Cookie-Popup wurde nicht gefunden oder bereits ausgeblendet.")
