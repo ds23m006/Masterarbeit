@@ -5,7 +5,7 @@ def setup_logger(name=__name__, log_file='scraper.log', level=logging.DEBUG):
     """
     Initialisiert den Logger für Krone. Schreibt Logdateien in krone/logfiles.
     """
-    log_folder = 'Krone/Webscraping/logfiles'
+    log_folder = 'Webscraping/Krone/logfiles'
     os.makedirs(log_folder, exist_ok=True)
     log_file_path = os.path.join(log_folder, log_file)
 

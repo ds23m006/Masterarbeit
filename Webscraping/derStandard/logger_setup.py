@@ -3,7 +3,7 @@ import os
 
 def setup_logger(name=__name__, log_file='scraper.log', level=logging.DEBUG):
     # set log file path
-    log_file_path = os.path.join('derStandard/WebScraping/logfiles', log_file)
+    log_file_path = os.path.join('WebScraping/derStandard/logfiles', log_file)
 
     logger = logging.getLogger(name)
     logger.setLevel(level)
