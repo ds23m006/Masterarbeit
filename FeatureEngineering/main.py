@@ -3,10 +3,12 @@ from logger_setup import setup_logger, close_logger
 from database import get_db_connection
 from feature_engineering import run_basic_feature_engineering
 from keyword_extraction import run_keyword_extraction
+from sentiment_analysis import run_sentiment_analysis
 
 def process_collection(collection_name, logger, batch_size=1000):
     """
-    Führt Feature Engineering und Keyword Extraction für eine gegebene Collection durch.
+    Führt Feature Engineering, Keyword Extraction
+    UND Sentiment-Analyse für eine gegebene Collection durch.
     """
     logger.info(f"Starte Verarbeitung der Collection '{collection_name}'...")
     try:
@@ -20,8 +22,12 @@ def process_collection(collection_name, logger, batch_size=1000):
         # 2. Keyword Extraction und Autor-Artikel-Zählung ausführen
         logger.info(f"Starte Keyword Extraction und Autor-Artikel-Zählung für '{collection_name}'...")
         run_keyword_extraction(conn, batch_size=batch_size)
-        
-        logger.info(f"Feature Engineering für '{collection_name}' abgeschlossen.")
+
+        # 3. Sentiment Analysis pro Paragraph
+        logger.info(f"Starte Sentiment-Analyse für '{collection_name}'...")
+        run_sentiment_analysis(conn, logger, batch_size=batch_size)
+
+        logger.info(f"Feature Engineering + Sentiment für '{collection_name}' abgeschlossen.")
     except Exception as e:
         logger.error(f"Fehler beim Verarbeiten der Collection '{collection_name}': {e}", exc_info=True)
 
@@ -31,7 +37,7 @@ def main():
     logger.info("Feature Engineering Prozess gestartet.")
     
     # Liste der zu verarbeitenden Collections
-    collections = ['Krone', 'derStandard']
+    collections = ['Krone', 'derStandard', 'ORF']
     
     try:
         for collection_name in collections:
