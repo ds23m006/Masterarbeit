@@ -2,10 +2,7 @@
 
 import nltk
 from nltk.tokenize import sent_tokenize
-from transformers import pipeline
-
-# Wir importieren KEIN logger_setup hier, da wir den Logger von main.py injecten
-# Wir importieren auch NICHT get_db_connection hier, da das main.py uns die Collection liefert
+from transformers import pipeline, AutoTokenizer
 
 nltk.download('punkt')
 
@@ -63,7 +60,7 @@ def analyze_sentiment_paragraph(paragraph, max_chunk_size=520):
     """
     chunks = split_text_into_chunks_paragraphwise(paragraph, max_chunk_size)
     if not chunks:
-        return None, None
+        return None, None  # Absatz war leer
 
     chunk_texts, chunk_lengths = zip(*chunks)
     results = sentiment_pipeline(list(chunk_texts))
@@ -98,9 +95,6 @@ def analyze_sentiment_paragraph(paragraph, max_chunk_size=520):
         avg_sentiment = weighted_sum / total_weights
 
     # Klassifiziere
-    if avg_sentiment is None:
-        return None, None  # failsafe
-
     if avg_sentiment < -0.5:
         sentiment_class = 'negative'
     elif -0.5 <= avg_sentiment < 0.5:
@@ -111,20 +105,45 @@ def analyze_sentiment_paragraph(paragraph, max_chunk_size=520):
     return avg_sentiment, sentiment_class
 
 
+def _token_weight(text: str):
+    """
+    Hilfsfunktion, um die Anzahl Tokens (nach BERT-Tokenizer) eines Absatzes zu ermitteln.
+    """
+    if not text:
+        return 0
+    tokens = tokenizer.encode(text, add_special_tokens=False)
+    return len(tokens)
+
+
 def run_sentiment_analysis(conn, logger, batch_size=1000):
     """
-    Führt die Sentiment-Analyse pro Paragraph durch.
+    Führt die Sentiment-Analyse pro Paragraph durch und speichert
+    zusätzlich einen Dokument-Sentiment-Wert (token-gewichtet).
+
     Filterkriterien:
     0) features.paragraph_sentiments == null
     1) scraping_info.status = "success"
     2) features.paywall != True
     3) features.APA_sentiment != null
-    Speichert das Ergebnis in features.paragraph_sentiments.
+
+    Ergebnis:
+     - features.paragraph_sentiments: array pro Absatz
+       [
+         {
+           "paragraph_index": ...,
+           "text": "...",
+           "sentiment_value": float,
+           "sentiment_class": str
+         },
+         ...
+       ]
+
+     - features.doc_sentiment_value: float
+     - features.doc_sentiment_class: str
     """
 
     logger.info(f"Starte Sentiment-Analyse in Collection '{conn.name}'...")
 
-    # Filterkriterien
     query = {
         "scraping_info.status": "success",
         "$or": [
@@ -133,7 +152,8 @@ def run_sentiment_analysis(conn, logger, batch_size=1000):
             {"features.paywall": None}
         ],
         "features.APA_sentiment": {"$ne": None},
-        "features.paragraph_sentiments": None
+        # nur Dokumente, wo doc_sentiment_class noch nicht gesetzt:
+        "features.doc_sentiment_class": None
     }
 
     doc_count = conn.count_documents(query)
@@ -145,18 +165,21 @@ def run_sentiment_analysis(conn, logger, batch_size=1000):
     for doc in cursor:
         counter += 1
         doc_id = doc["_id"]
-
         article_obj = doc.get("article", {})
         paragraphs = article_obj.get("text", [])
+
         if not isinstance(paragraphs, list):
             logger.debug(f"Dokument {doc_id}: 'article.text' ist kein Array -> Überspringe.")
             continue
 
         paragraph_sentiments = []
+        # Für die Dokumentberechnung
+        doc_sentiment_sum = 0.0
+        doc_token_sum = 0
+
         for i, paragraph in enumerate(paragraphs):
             p_str = paragraph.strip()
             if not p_str:
-                # Leerer Absatz
                 paragraph_sentiments.append({
                     "paragraph_index": i,
                     "text": "",
@@ -173,14 +196,37 @@ def run_sentiment_analysis(conn, logger, batch_size=1000):
                 "sentiment_class": sent_class
             })
 
-        # Anschließend abspeichern
+            # Nun Tokens im gesamten Absatz zählen (nicht nur in den Chunks)
+            # um eine Weighted-Average-Berechnung auf Doku-Ebene zu ermöglichen:
+            paragraph_token_count = _token_weight(p_str)
+            if avg_sent is not None and paragraph_token_count > 0:
+                doc_sentiment_sum += avg_sent * paragraph_token_count
+                doc_token_sum += paragraph_token_count
+
+        # Dokument-Level-Berechnung
+        if doc_token_sum == 0:
+            doc_sent_value = None
+            doc_sent_class = None
+        else:
+            doc_avg = doc_sentiment_sum / doc_token_sum
+            if doc_avg < -0.5:
+                doc_sent_class = 'negative'
+            elif -0.5 <= doc_avg < 0.5:
+                doc_sent_class = 'neutral'
+            else:
+                doc_sent_class = 'positive'
+            doc_sent_value = doc_avg
+
+        # Speichere die Ergebnisse
+        update_data = {
+            "features.paragraph_sentiments": paragraph_sentiments,
+            "features.doc_sentiment_value": doc_sent_value,
+            "features.doc_sentiment_class": doc_sent_class
+        }
+
         update_result = conn.update_one(
             {"_id": doc_id},
-            {
-                "$set": {
-                    "features.paragraph_sentiments": paragraph_sentiments
-                }
-            }
+            {"$set": update_data}
         )
         logger.debug(
             f"[{conn.name}] Dokument {doc_id} aktualisiert. "

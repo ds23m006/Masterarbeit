@@ -12,7 +12,7 @@ def setup_logger(name=__name__, log_file='feature_engineering.log', level=loggin
     # Verhindert doppelte Logs, falls der Logger mehrfach konfiguriert wird
     if not logger.handlers:
         # Log-Verzeichnis erstellen
-        log_folder = 'logs'
+        log_folder = 'FeatureEngineering/logs'
         os.makedirs(log_folder, exist_ok=True)
         log_path = os.path.join(log_folder, log_file)
 
