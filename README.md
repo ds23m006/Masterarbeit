@@ -86,11 +86,7 @@ Für historische Artikel kann man über die URL die Parameter variieren, um unte
 
 ### Dynamische Inhalte
 
-Viele Websites laden Inhalte nur bei Benutzerinteraktion. Selenium wird hier eingesetzt, obwohl es ressourcenintensiver ist.
-
-### Rate-Limiting und Blocker
-
-Die robots.txt Dateien werden stets respektiert. Es werden keine Seiten gescraped, wenn es explizit verboten wird.   
+Viele Websites laden gewisse Inhalte nur bei Benutzerinteraktion. Für solche Seiten wird Selenium verwendet. 
 
 ---
 
