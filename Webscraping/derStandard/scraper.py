@@ -24,19 +24,23 @@ from parsers import (
 from utils import expand_shadow_element
 
 def scrape_articles(logger, n=10):
-    derStandard_collection = get_db_connection()
+    collection = get_db_connection()
     
     # get URLs
-    urls_to_scrape = list(derStandard_collection.find({
-        '$or': [
-            {'scraping_info.status': {'$in': ['', None]}},
-            {'scraping_info.status': {'$exists': False}}
+    urls_to_scrape = list(collection.find({
+        '$and': [
+            { 'features.APA_OeNB_Sentiment': { '$exists': True, '$nin': [None, ""] } },
+            {'scraping_info.status': {'$nin': ['success']}},
+            #{ '$or': [
+            #    {'scraping_info.status': {'$nin': ['success']}},
+            #    {'scraping_info.status': {'$exists': False}}
+            #]}
         ]
-        }, {'scraping_info.url': 1}))
+    }, {'scraping_info.url': 1}))
     
     if len(urls_to_scrape)==0:
         logger.info(f"Alle Files bereits gescraped... Files mit status=error werden erneut gescraped")
-        urls_to_scrape = list(derStandard_collection.find({'scraping_info.status': 'error'}, {'scraping_info.url': 1}))
+        urls_to_scrape = list(collection.find({'scraping_info.status': 'error'}, {'scraping_info.url': 1}))
     
     logger.info(f"Anzahl der zu scrapenden URLs: {len(urls_to_scrape)}")
 
@@ -53,7 +57,7 @@ def scrape_articles_chunk(urls_chunk):
     logger = setup_logger(log_file=log_file)
     logger.info(f"Prozess {pid} gestartet und verarbeitet {len(urls_chunk)} Artikel.")
 
-    derStandard_collection = get_db_connection()
+    collection = get_db_connection()
     driver = configure_driver(headless=True)
 
     try:
@@ -61,12 +65,12 @@ def scrape_articles_chunk(urls_chunk):
             full_url = url_dict['scraping_info']['url']
 
             # liveticker
-            if not full_url.startswith("https://www.derstandard.at/story"):
-                scraping_status(derStandard_collection, "skipped", full_url, "Skipping Liveticker", logger)
+            if full_url.startswith("https://www.derstandard.at/jetzt"):
+                scraping_status(collection, "skipped", full_url, "Skipping Liveticker", logger)
                 continue
 
             if "kreuzwortraetsel" in full_url:
-                scraping_status(derStandard_collection, "skipped", full_url, "Skipping Kreuzworträtsel", logger)
+                scraping_status(collection, "skipped", full_url, "Skipping Kreuzworträtsel", logger)
                 continue
 
             logger.info(f"Prozess {pid} verarbeitet URL: {full_url}")
@@ -77,7 +81,7 @@ def scrape_articles_chunk(urls_chunk):
                 try:
                     driver.get(full_url)
                 except TimeoutException:
-                    scraping_status(derStandard_collection, "error", full_url, "Timeout nach 10 Sekunden", logger)
+                    scraping_status(collection, "error", full_url, "Timeout nach 10 Sekunden", logger)
                     continue
 
                 wait = WebDriverWait(driver, 10)
@@ -110,7 +114,7 @@ def scrape_articles_chunk(urls_chunk):
                 article_datetime = get_article_datetime(soup, logger)
 
                 if article_datetime is None or title is None:
-                    scraping_status(derStandard_collection, "error", full_url, 'Fehlendes Datum oder Titel', logger)
+                    scraping_status(collection, "error", full_url, 'Fehlendes Datum oder Titel', logger)
                     continue
 
                 # Anzahl der Postings
@@ -157,7 +161,7 @@ def scrape_articles_chunk(urls_chunk):
                 }
 
                 # Daten in die 'derStandard' Collection einfügen
-                derStandard_collection.update_one(
+                collection.update_one(
                     {'scraping_info.url': full_url},
                     {'$set': article_data}
                 )
@@ -165,9 +169,9 @@ def scrape_articles_chunk(urls_chunk):
                 logger.info(f"Erfolgreich gescraped mit Status '{status}': {full_url} am {article_datetime}")
 
             except TimeoutException:
-                scraping_status(derStandard_collection, "error", full_url,'Timeout nach 10 Sekunden', logger)
+                scraping_status(collection, "error", full_url,'Timeout nach 10 Sekunden', logger)
             except Exception as e:
-                scraping_status(derStandard_collection, "error", full_url, str(e), logger)
+                scraping_status(collection, "error", full_url, str(e), logger)
                 logger.error(f"Fehler beim Verarbeiten von {full_url}: {e}", exc_info=True)
                 continue
     finally:

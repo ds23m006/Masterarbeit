@@ -221,11 +221,14 @@ async def main():
 
     # Abrufen der URLs, die noch nicht gescraped wurden
     urls_to_scrape = list(collection.find({
-        '$or': [
-            {'scraping_info.status': {'$in': ['', None, 'error']}},
-            {'scraping_info.status': {'$exists': False}}
+        '$and': [
+            { 'features.APA_OeNB_Sentiment': { '$exists': True, '$nin': [None, ""] } },
+            { '$or': [
+                { 'scraping_info.status': { '$in': ['', None, 'error'] } },
+                { 'scraping_info.status': { '$exists': False } }
+            ]}
         ]
-    }, {'scraping_info.url': 1}))
+    }, { 'scraping_info.url': 1 }))
     urls = [doc['scraping_info']['url'] for doc in urls_to_scrape if 'scraping_info' in doc and 'url' in doc['scraping_info']]
 
     if not urls:

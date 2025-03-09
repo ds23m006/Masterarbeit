@@ -20,22 +20,27 @@ def scrape_articles(logger, n=10):
     Liest aus der MongoDB alle URLs, deren Status != 'success' ist,
     teilt sie auf n Prozesse auf und ruft 'scrape_articles_chunk' parallel auf.
     """
-    krone_collection = get_db_connection('Krone')
+    collection = get_db_connection('Krone')
 
     # URLs selektieren
-    urls_to_scrape = list(krone_collection.find(
+    urls_to_scrape = list(collection.find(
         {
-            '$or': [
-                {'scraping_info.status': {'$nin': ['success', 'skipped', 'warning (missing title)', 'warning (missing pubdate)']}},
-                {'scraping_info.status': {'$exists': False}}
+            '$and': [
+                { 'features.APA_OeNB_Sentiment': { '$exists': True, '$nin': [None, ""] } },
+                {
+                    '$or': [
+                        {'scraping_info.status': {'$nin': ['success', 'skipped', 'warning (missing title)', 'warning (missing pubdate)']}},
+                        {'scraping_info.status': {'$exists': False}}
+                    ]
+                }
             ]
         },
         {
             'scraping_info.url': 1,
-            'scraping_info.status': 1  # status hinzufügen, um danach sortieren zu können
+            'scraping_info.status': 1
         }
     ).sort([
-        ('scraping_info.status', 1)  # null-Werte kommen zuerst
+        ('scraping_info.status', 1)
     ]))
     
     if len(urls_to_scrape) == 0:
@@ -57,7 +62,7 @@ def scrape_articles_chunk(urls_chunk):
     logger = setup_logger(log_file=log_file)
     logger.info(f"Prozess {pid} gestartet und verarbeitet {len(urls_chunk)} Artikel.")
 
-    krone_collection = get_db_connection('Krone')
+    collection = get_db_connection('Krone')
     driver = configure_driver(headless=True)
 
     try:
@@ -69,7 +74,7 @@ def scrape_articles_chunk(urls_chunk):
             if full_url.startswith('https://tv.krone.at'):
                 try:
                     # Setze scraping_info.status auf "skipped" und aktualisiere download_datetime
-                    scraping_status(krone_collection, "skipped", full_url, "URL wird übersprungen", logger)
+                    scraping_status(collection, "skipped", full_url, "URL wird übersprungen", logger)
                     logger.info(f"URL wird übersprungen: {full_url}")
                 except Exception as e:
                     logger.error(f"Fehler beim Überspringen der URL {full_url}: {e}", exc_info=True)
@@ -82,11 +87,11 @@ def scrape_articles_chunk(urls_chunk):
                 driver.set_page_load_timeout(30)
                 driver.get(full_url)
             except TimeoutException:
-                scraping_status(krone_collection, "error", full_url, "Timeout beim Laden der Seite", logger)
+                scraping_status(collection, "error", full_url, "Timeout beim Laden der Seite", logger)
                 logger.error(f"Timeout beim Laden der Seite: {full_url}")
                 continue
             except Exception as e:
-                scraping_status(krone_collection, "error", full_url, f"Fehler beim Laden: {e}", logger)
+                scraping_status(collection, "error", full_url, f"Fehler beim Laden: {e}", logger)
                 logger.error(f"Fehler beim Laden der Seite: {e}", exc_info=True)
                 continue
 
@@ -100,7 +105,7 @@ def scrape_articles_chunk(urls_chunk):
                 article_data = parse_krone_article(soup, logger)
                 logger.debug("Artikel erfolgreich geparst.")
             except Exception as e:
-                scraping_status(krone_collection, "error", full_url, f"Fehler beim Artikel-Parsing: {e}", logger)
+                scraping_status(collection, "error", full_url, f"Fehler beim Artikel-Parsing: {e}", logger)
                 logger.error(f"Fehler beim Artikel-Parsing: {e}", exc_info=True)
                 continue
 
@@ -127,7 +132,7 @@ def scrape_articles_chunk(urls_chunk):
                     comments_count = len(forum_comments)
                     logger.debug(f"{comments_count} Kommentare geparst.")
                 except Exception as e:
-                    scraping_status(krone_collection, "warning (comments)", full_url, f"Fehler beim Kommentar-Parsing: {e}", logger)
+                    scraping_status(collection, "warning (comments)", full_url, f"Fehler beim Kommentar-Parsing: {e}", logger)
                     logger.error(f"Fehler beim Kommentar-Parsing: {e}", exc_info=True)
                     forum_comments = []
                     comments_count = 0
@@ -158,7 +163,7 @@ def scrape_articles_chunk(urls_chunk):
             })
 
             try:
-                krone_collection.update_one(
+                collection.update_one(
                     {'scraping_info.url': full_url},
                     {'$set': article_data}
                 )

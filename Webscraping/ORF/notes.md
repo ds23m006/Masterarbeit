@@ -5,7 +5,6 @@
     https://help.orf.at/elasticsearch?query=*&from=0&sort=date (verfügbar)
     https://science.orf.at/elasticsearch?query=*&from=0&sort=date (verfügbar)
 
-
 - Kein Archiv
     siehe https://zukunft.orf.at/rte/upload/2023/veroeffentlichungen/veroeffentlichungen_010124/angebotskonzept_news_vom_15-10-2023.pdf
 
@@ -21,11 +20,3 @@ Daher folgendes vorgehen:
     https://science.orf.at/stories/XXXXXX/
     https://science.orf.at/stories/YYYYYY/
     Suche händisch nach passenden XXXXXX und YYYYYY
-
-    
-
-
-
-
-
-
