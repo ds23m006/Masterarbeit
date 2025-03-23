@@ -40,11 +40,9 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
         for doc in documents:
             doc_id = doc.get("_id")
 
-            """
             if doc.get("features", {}).get("absa", {}).get("method3", {}).get("overall_sentiment"):
                 logger.info("Dokument %s bereits analysiert (überspringe).", doc_id)
                 continue
-            """
 
             paragraphs = doc.get("article", {}).get("text", [])
             if not paragraphs:

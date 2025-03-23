@@ -109,6 +109,12 @@ def process_documents_for_aspect_method2(collection_name, aspect="OeNB"):
     logger.info("Verarbeite %d Dokumente in Collection %s.", len(docs_list), collection_name)
 
     for doc in docs_list:
+        doc_id = doc.get("_id")
+
+        if doc.get("features", {}).get("absa", {}).get("method2", {}).get("overall_sentiment"):
+            logger.info("Dokument %s bereits analysiert (überspringe).", doc_id)
+            continue
+
         doc_text = doc.get("article", {}).get("text", [])
         paragraphs_output = []
         overall_score = 0.0

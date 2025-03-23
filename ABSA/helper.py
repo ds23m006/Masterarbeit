@@ -234,7 +234,23 @@ ENTITY_RULER_PATTERNS = [
     {
         "label": "OeNB",
         "pattern": [
-            {"LOWER": {"REGEX": r"^(nationalbank)$"}}
+            {"LOWER": {"REGEX": r"^nationalbanks?[a-zäöüß]*$"}}
+        ]
+    },
+
+    # (d) "Nationalbank-" mit Bindestrich
+    {
+        "label": "OeNB",
+        "pattern": [
+            {"LOWER": {"REGEX": r"^nationalbank-[a-zäöüß]*$"}}
+        ]
+    },
+
+        # (d) "Nationalbank-" mit Bindestrich
+    {
+        "label": "OeNB",
+        "pattern": [
+            {"LOWER": {"REGEX": r"^nationalbank$"}}
         ]
     },
 ]
