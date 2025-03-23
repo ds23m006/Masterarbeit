@@ -69,6 +69,13 @@ def load_sentiws():
 
     return sentiws
 
+def classify_sentiment_value(value, threshold=0.25):
+    if value > threshold:
+        return "positiv"
+    elif value < -threshold:
+        return "negativ"
+    else:
+        return "neutral"
 
 
 ENTITY_RULER_PATTERNS = [

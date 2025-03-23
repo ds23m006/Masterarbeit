@@ -1,32 +1,50 @@
+import os
 import sys
-sys.path.append(r"Z:\Technikum\Masterarbeit")
-from ABSA.helper import get_docs, load_sentiws, ENTITY_RULER_PATTERNS
+import logging
+from collections import deque
 
+sys.path.append(r"Z:\Technikum\Masterarbeit")
+from ABSA.helper import get_docs, load_sentiws, classify_sentiment_value, ENTITY_RULER_PATTERNS
+from pymongo import MongoClient
+
+# Logging konfigurieren: Ausgabe in Konsole und Datei (optional)
+log_dir = os.path.join("ABSA", "method1")
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+log_file = os.path.join(log_dir, "method1.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(log_file, mode="a", encoding="utf-8")
+    ]
+)
+logger = logging.getLogger(__name__)
+logger.info("Logging gestartet für Methode 1. Logfile: %s", log_file)
+
+# -------------------------------
+# spaCy, Entity Ruler, SentiWS und Extensions
+# -------------------------------
 import spacy
 from spacy.pipeline import EntityRuler
 from spacy.tokens import Token, Doc
 
-from collections import deque  # für BFS
-
-
-docs_cursor, collection = get_docs("derStandard")
-
-# SpaCy-Modell laden (Deutsch)
+# Lade spaCy-Modell
 nlp = spacy.load("de_core_news_lg")
+logger.info("spaCy-Modell 'de_core_news_lg' geladen.")
 
 # Entity Ruler erstellen und vor dem Standard-NER platzieren
 ruler = nlp.add_pipe("entity_ruler", before="ner")
 ruler.add_patterns(ENTITY_RULER_PATTERNS)
+logger.info("Entity Ruler konfiguriert mit %d Patterns.", len(ENTITY_RULER_PATTERNS))
 
-
-
-# -------------------------------
-# Token-Extension: SentiWS-Score
-# -------------------------------
-
-# Dictionary laden
+# SentiWS-Lexikon laden
 sentiws_lexicon = load_sentiws()
+logger.info("SentiWS-Lexikon geladen: %d Einträge.", len(sentiws_lexicon))
 
+# Token-Extension: SentiWS-Score
 if not Token.has_extension("sentiws_score"):
     Token.set_extension("sentiws_score", default=0.0)
 
@@ -35,13 +53,11 @@ def sentiws_score_getter(token):
 
 # Getter registrieren
 Token.set_extension("sentiws_score", getter=sentiws_score_getter, force=True)
+logger.info("Token-Extension 'sentiws_score' registriert.")
 
-
-# diese Begriffe negieren das Sentiment (gedämpft)
-negation_words = {"nicht", "kein", "keine", "keinen", "keinem", "ohne", "nie"}
-
-# diese Begriffe verstärken oder schwächen das Sentiment
-booster_words = {
+# Definition der Negations- und Booster-Wörter
+NEGATION_WORDS = {"nicht", "kein", "keine", "keinen", "keinem", "ohne", "nie"}
+BOOSTER_WORDS = {
     "sehr": 1.5,
     "extrem": 2.0,
     "leicht": 1.2,
@@ -53,23 +69,18 @@ booster_words = {
 
 def refine_score_with_modifiers(token, base_score):
     """
-    Prüft die direkten Kinder für:
-     - Negation (dep_ == "neg" bzw. Wort in negation_words)
-     - Booster (dep_ == "advmod" oder "amod", bzw. Wort in booster_words)
-    und passt den Score an:
-      - Negation => Multiplikation mit -0.5
-      - Booster => Multiplikation mit dem jeweiligen Booster-Faktor
+    Prüft die direkten Kinder eines Tokens, um etwaige Negationen oder Booster zu berücksichtigen.
+      - Bei Negation (dep_ == "neg" oder Wort in NEGATION_WORDS) wird der Score mit -0.5 multipliziert.
+      - Bei Booster (dep_ in ("advmod", "amod") und Wort in BOOSTER_WORDS) wird der Score mit dem jeweiligen Faktor multipliziert.
     """
     final_score = base_score
 
     # prüfen der direkten children:
     for child in token.children:
-        # Negation?
-        if child.dep_ == "neg" or (child.lower_ in negation_words):
+        if child.dep_ == "neg" or (child.lower_ in NEGATION_WORDS):
             final_score *= -0.5
-        # Booster?
-        elif (child.dep_ in ("advmod", "amod")) and (child.lower_ in booster_words):
-            factor = booster_words[child.lower_]
+        elif (child.dep_ in ("advmod", "amod")) and (child.lower_ in BOOSTER_WORDS):
+            factor = BOOSTER_WORDS[child.lower_]
             final_score *= factor
     return final_score
 
@@ -81,13 +92,7 @@ def refine_score_with_modifiers(token, base_score):
 def is_token_linked_to_aspect(token, aspect_tokens, max_depth=3):
     """
     Führt eine BFS im Dependency-Baum durch (bis zu max_depth Kanten),
-    um herauszufinden, ob 'token' mit einem der 'aspect_tokens' verknüpft ist.
-    
-    Wir gehen von 'token' aus:
-     - Fügen seinen Head und seine Kinder zur Warteschlange hinzu,
-     - gehen pro Nachbar eine Ebene tiefer usw.
-    Falls wir dabei auf einen Token aus 'aspect_tokens' treffen, return True.
-    Ansonsten False.
+    um zu prüfen, ob 'token' mit einem der 'aspect_tokens' verknüpft ist.
     """
     if token in aspect_tokens:
         return True
@@ -119,33 +124,22 @@ def is_token_linked_to_aspect(token, aspect_tokens, max_depth=3):
 
     return False
 
-
-
-####################################################
-# compute_sentiment_for_aspect (mit Satz-Skip-Optimierung)
-####################################################
-def compute_sentiment_for_aspect(doc, aspect_label="OeNB", max_depth=3):
+def compute_sentiment_for_aspect_method1(doc, aspect_label="OeNB", max_depth=3):
     """
-    Durchläuft alle Sätze und summiert Sentiment nur für Tokens,
-    die sich auf den aspect beziehen. (Dependency-Check)
-    Engere Booster-/Negationsprüfung (Kinder).
-    Überspringt Satz, wenn kein Aspect oder keine sentimenttragenden Tokens.
-    
-    max_depth: wie tief wir im Dependency-Baum für die Verknüpfung suchen (BFS).
+    Durchläuft alle Sätze des spaCy-Dokuments und summiert die Sentimentwerte aller Tokens,
+    die per Dependency-Check (BFS, max_depth) dem Aspekt zugeordnet werden können.
+    Sentiment-Werte werden über die Booster/Negationslogik angepasst.
+    Sätze ohne Aspekt oder Sentiment-Token werden übersprungen.
     """
     total_score = 0.0
     for sent in doc.sents:
         # 1) Prüfen, ob Aspect im Satz existiert
         aspect_ents = [ent for ent in sent.ents if ent.label_ == aspect_label]
         if not aspect_ents:
-            continue  # Kein aspect => Satz ignorieren
-
-        # 2) Gibt es im Satz Sentiment-Token?
+            continue
         sentiment_tokens = [t for t in sent if t._.sentiws_score != 0.0]
         if not sentiment_tokens:
-            continue  # Keine Sentiments => Satz ignorieren
-
-        # 3) Tokens, die zu den aspect-Entitäten gehören, erfassen
+            continue
         aspect_tokens = set()
         for ent in aspect_ents:
             for t in ent:
@@ -156,26 +150,20 @@ def compute_sentiment_for_aspect(doc, aspect_label="OeNB", max_depth=3):
         for token in sentiment_tokens:
             if is_token_linked_to_aspect(token, aspect_tokens, max_depth=max_depth):
                 base_score = token._.sentiws_score
-                refined_score = refine_score_with_modifiers(token, base_score) # Booster/Negations-Logik
+                refined_score = refine_score_with_modifiers(token, base_score)
                 sent_score += refined_score
 
-
         total_score += sent_score
-
     return total_score
 
-
-####################################################
-# Doc-Extension 
-####################################################
-#    Speichert in einem Dictionary {<aspekt_label>: <score>, ...}
+# Doc-Extension zur Speicherung der ABSA-Ergebnisse
 if not Doc.has_extension("aspect_sentiment"):
     Doc.set_extension("aspect_sentiment", default=dict)
 
 def perform_absa(text, aspects=["OeNB"], max_depth=3):
     """
-    Nimmt einen Text, erstellt ein Doc, berechnet für jeden Aspekt in 'aspects'
-    den Sentiment-Wert und legt ihn in doc._.aspect_sentiment[aspekt_label] ab.
+    Erzeugt ein spaCy-Dokument aus dem Text, berechnet für jeden Aspekt in 'aspects'
+    den aggregierten Sentiment-Wert (Methode 1) und speichert ihn in doc._.aspect_sentiment.
     """
     doc = nlp(text)
     
@@ -184,65 +172,24 @@ def perform_absa(text, aspects=["OeNB"], max_depth=3):
 
     # Für jeden Aspekt Label
     for aspect_label in aspects:
-        sentiment_value = compute_sentiment_for_aspect(
-            doc,
-            aspect_label=aspect_label,
-            max_depth=max_depth
-        )
+        sentiment_value = compute_sentiment_for_aspect_method1(doc, aspect_label=aspect_label, max_depth=max_depth)
         doc._.aspect_sentiment[aspect_label] = sentiment_value
-
+        logger.debug("Perform ABSA: Aspekt %s, Score: %.3f", aspect_label, sentiment_value)
     return doc
-
-
-
-def classify_sentiment_value(value, threshold=0.5):
-    """
-    Wandelt den Sentiment-Wert in eine einfache Klasse um:
-      - > threshold => 'positiv'
-      - < -threshold => 'negativ'
-      - sonst => 'neutral'
-    Du kannst die Schwellen anpassen, z.B. threshold=0.5 etc.
-    """
-    if value > threshold:
-        return "positiv"
-    elif value < -threshold:
-        return "negativ"
-    else:
-        return "neutral"
-    
-
 
 def process_documents_for_aspect(collection_name="derStandard", aspects=["OeNB"]):
     """
-    Lädt bis zu max_docs Dokumente aus der angegebenen Collection.
-    Für jedes Dokument iteriert diese Funktion über alle Paragraphen,
-    berechnet den Sentiment-Wert pro definiertem Aspekt (z. B. "OeNB") mittels perform_absa,
-    speichert die Werte pro Paragraphen und aggregiert die Werte für das gesamte Dokument.
+    Lädt Dokumente aus der angegebenen Collection und verarbeitet jedes Dokument.
+    Für jedes Dokument werden die Paragraphen aus dem Feld article.text durchlaufen,
+    für jeden Paragraphen wird die ABSA (Methode 1) durchgeführt, und die Ergebnisse
+    (paragraphweise und aggregiert) werden in der Datenbank unter features.absa.method1 gespeichert.
     
-    Die Ergebnisse werden in der Struktur
-    {
-      "paragraphs": [
-          {
-             "index": <Paragraph-Nummer>,
-             "text": <Paragraph-Text>,
-             "sentiments": [
-                 {
-                   "aspect": <Aspekt>,
-                   "score": <Wert>,
-                   "class": <Klasse>
-                 },
-                 ...
-             ]
-          },
-          ...
-      ],
-      "overall_scores": { <Aspekt>: <aggregierter Score>, ... },
-      "overall_sentiment": { <Aspekt>: <Klasse>, ... }
-    }
-    unter features.absa.method1 in der Datenbank gespeichert.
+    :param collection_name: Name der Collection (z. B. "derStandard")
+    :param aspects: Liste der zu verarbeitenden Aspekte, z. B. ["OeNB"]
     """
     docs_cursor, collection = get_docs(collection_name)
     docs_list = list(docs_cursor)
+    logger.info("Verarbeite %d Dokumente in Collection '%s'.", len(docs_list), collection_name)
 
     for doc in docs_list:
         # doc_text ist eine Liste von Paragraph-Strings
@@ -274,28 +221,26 @@ def process_documents_for_aspect(collection_name="derStandard", aspects=["OeNB"]
                 "sentiments": paragraph_sentiments
             }
             paragraphs_output.append(paragraph_info)
-
-
-        # Gesamtsentiment pro Aspekt ableiten
-        overall_sentiment = {aspect: classify_sentiment_value(overall_scores[aspect])
-                             for aspect in aspects}
+            logger.debug("Dokument %s, Paragraph %d verarbeitet.", doc["_id"], j)
         
+        overall_sentiment = {aspect: classify_sentiment_value(overall_scores[aspect]) for aspect in aspects}
         absa_method1_data = {
             "paragraphs": paragraphs_output,
             "overall_scores": overall_scores,
             "overall_sentiment": overall_sentiment
         }
-
-        # ---- 4) Update in DB: features.absa.method1 ----
-        # Update in der Datenbank unter features.absa.method1
         collection.update_one(
             {"_id": doc["_id"]},
             {"$set": {"features.absa.method1": absa_method1_data}}
         )
-        print(f"Document {doc['_id']} processed and updated.")
-
-    print(f"{len(docs_list)} Dokumente verarbeitet und aktualisiert.")
+        logger.info("Document %s processed: Overall Score: %s, Overall Sentiment: %s",
+                    doc["_id"], overall_scores, overall_sentiment)
+    logger.info("%d Dokumente in Collection '%s' verarbeitet (Methode 1).", len(docs_list), collection_name)
 
 
 if __name__ == "__main__":
-    process_documents_for_aspect(collection_name="derStandard", aspects=["OeNB"])
+    # Liste der Collections, die verarbeitet werden sollen
+    collections = ["derStandard", "Krone", "ORF"]
+    for c in collections:
+        logger.info("Starte Verarbeitung der Collection: %s", c)
+        process_documents_for_aspect(collection_name=c, aspects=["OeNB"])
