@@ -129,7 +129,7 @@ def process_documents_for_aspect_method2(collection_name, aspect="OeNB"):
                     {
                         "aspect": aspect,
                         "label": label,
-                        "numeric_score": round(score, 3)
+                        "numeric_score": score
                     }
                 ]
             }
@@ -139,11 +139,12 @@ def process_documents_for_aspect_method2(collection_name, aspect="OeNB"):
         if paragraphs_count == 0:
             logger.info("Document %s: Kein Paragraph mit Aspekt %s gefunden, übersprungen.", doc["_id"], aspect)
             continue
-
+        
+        overall_score /= paragraphs_count
         overall_class = classify_sentiment_value(overall_score, threshold=0.5)
         absa_method2_data = {
             "paragraphs": paragraphs_output,
-            "overall_score": round(overall_score, 3),
+            "overall_score": overall_score,
             "overall_sentiment": {
                 aspect: overall_class
             }
