@@ -218,5 +218,23 @@ ENTITY_RULER_PATTERNS = [
             {"LOWER": {"REGEX": r"^(ö|oe)sterreichische(n|r)?$"}},
             {"LOWER": {"REGEX": r"^(nationalbank|notenbank)$"}}
         ]
-    }
+    },
+
+    #
+    # 7) HYBRID: Bindestrich-Ausdrücke (z. B. "OeNB-Studie")
+    #
+    {
+        "label": "OeNB",
+        "pattern": [
+            {"LOWER": {"REGEX": r"^oenb(-[a-zäöüß]+)+"}}
+        ]
+    },
+
+    # (c) "Nationalbank" allein
+    {
+        "label": "OeNB",
+        "pattern": [
+            {"LOWER": {"REGEX": r"^(nationalbank)$"}}
+        ]
+    },
 ]
