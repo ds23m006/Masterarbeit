@@ -200,12 +200,22 @@ def process_documents_for_aspect(collection_name="derStandard", aspects=["OeNB"]
 
         # ---- 2) Über Paragraphen iterieren ----
         for j, paragraph_j in enumerate(doc_text, start=1):
+            doc_spacy = nlp(paragraph_j)
             paragraph_sentiments = []
-            # Für jeden Aspekt den Score berechnen
+
+            # Prüfe ob Paragraph überhaupt relevante Entitäten enthält
+            has_aspect = any(ent.label_ in aspects for ent in doc_spacy.ents)
+            if not has_aspect:
+                logger.debug("Überspringe Paragraph %d (kein Aspekt gefunden)", j)
+                continue
+
             for aspect in aspects:
-                # Führe ABSA für den aktuellen Paragraphen für den jeweiligen Aspekt aus
-                doc_spacy = perform_absa(paragraph_j, aspects=[aspect], max_depth=3)
-                score = doc_spacy._.aspect_sentiment.get(aspect, 0.0)
+                aspect_ents = [ent for ent in doc_spacy.ents if ent.label_ == aspect]
+                if not aspect_ents:
+                    continue
+
+                # Führe ABSA durch
+                score = compute_sentiment_for_aspect_method1(doc_spacy, aspect_label=aspect, max_depth=3)
                 sentiment_class = classify_sentiment_value(score)
 
                 paragraph_sentiments.append({
@@ -215,14 +225,19 @@ def process_documents_for_aspect(collection_name="derStandard", aspects=["OeNB"]
                 })
                 overall_scores[aspect] += score
 
-            paragraph_info = {
-                "index": j,
-                "text": paragraph_j,
-                "sentiments": paragraph_sentiments
-            }
-            paragraphs_output.append(paragraph_info)
-            logger.debug("Dokument %s, Paragraph %d verarbeitet.", doc["_id"], j)
-        
+            if paragraph_sentiments:
+                paragraph_info = {
+                    "index": j,
+                    "text": paragraph_j,
+                    "sentiments": paragraph_sentiments
+                }
+                paragraphs_output.append(paragraph_info)
+                logger.debug("Dokument %s, Paragraph %d verarbeitet.", doc["_id"], j)
+
+        if not paragraphs_output:
+            logger.info("Dokument %s hat keine relevanten Paragraphen, übersprungen.", doc["_id"])
+            continue  # Optional: Dokument überspringen, wenn kein Paragraph gespeichert wurde
+
         overall_sentiment = {aspect: classify_sentiment_value(overall_scores[aspect]) for aspect in aspects}
         absa_method1_data = {
             "paragraphs": paragraphs_output,
