@@ -21,7 +21,7 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
     console_handler.setFormatter(log_format)
     logger.addHandler(console_handler)
 
-    file_handler = logging.FileHandler("ABSA/method3/method3alt.log", mode="a", encoding="utf-8")
+    file_handler = logging.FileHandler("ABSA/method3/method3_2.log", mode="a", encoding="utf-8")
     file_handler.setFormatter(log_format)
     logger.addHandler(file_handler)
 
@@ -40,7 +40,7 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
         for doc in documents:
             doc_id = doc.get("_id")
 
-            if doc.get("features", {}).get("absa", {}).get("method3alt", {}).get("overall_sentiment"):
+            if doc.get("features", {}).get("absa", {}).get("method3_2", {}).get("overall_sentiment"):
                 logger.info("Dokument %s bereits analysiert (überspringe).", doc_id)
                 continue
 
@@ -62,13 +62,12 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
             prompt_text = (
                 f"Analysiere den folgenden Text hinsichtlich des Sentiments bezüglich der Aspekte: {aspects_prompt}.\n"
                 "Berücksichtige Sarkasmus, Ironie, Kontext und andere linguistische Merkmale.\n"
-                "Erkläre zunächst kurz deine Analyse und warum du zu diesem Ergebnis kommst.\n"
+                "Erkläre warum du zu diesem Ergebnis kommst.\n"
                 "Danach gib deine finale Antwort in folgendem JSON-Format:\n"
                 "{\n"
                 "  \"OeNB\": \"positiv|neutral|negativ\"\n"
                 "}\n"
-                "Berücksichtige ausschließlich jene Abschnitte, in denen der Aspekt explizit erwähnt wird.\n"
-                "Zero-Shot. Keine weiteren Erklärungen außer der Analyse und dem finalen JSON-Objekt.\n\n"
+                "Keine weiteren Erklärungen außer der Analyse und dem finalen JSON-Objekt.\n\n"
                 f"Text:\n{text}"
             )
 
@@ -98,7 +97,7 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
             try:
                 collection.update_one(
                     {"_id": doc_id},
-                    {"$set": {"features.absa.method3alt.overall_sentiment": sentiment_result}}
+                    {"$set": {"features.absa.method3_2.overall_sentiment": sentiment_result}}
                 )
                 logger.info("Sentiment für Dokument %s gespeichert: %s", doc_id, sentiment_result)
             except Exception as e:
