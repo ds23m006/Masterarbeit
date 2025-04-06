@@ -49,16 +49,7 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
                 logger.warning("Dokument %s enthält keinen Text (überspringe).", doc_id)
                 continue
 
-            relevant_paragraphs = []
-            for paragraph in paragraphs:
-                if any(aspect in paragraph for aspect in aspects):
-                    relevant_paragraphs.append(paragraph)
-
-            if not relevant_paragraphs:
-                logger.info("Dokument %s enthält keine relevanten Absätze (überspringe).", doc_id)
-                continue
-
-            text = "\n\n".join(relevant_paragraphs)
+            text = "\n\n".join(paragraphs)
             doc_spacy = nlp(text)
 
             aspects_found = set(ent.label_ for ent in doc_spacy.ents if ent.label_ in aspects)
@@ -70,6 +61,7 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
 
             prompt_text = (
                 f"Analysiere den folgenden Text hinsichtlich des Sentiments bezüglich der Aspekte: {aspects_prompt}.\n"
+                "Nicht, ob die Aspekte generell Sentimentträger erwähnen, sondern ob der Artikel die Aspekte in ein bestimmtes Licht rückt.\n"
                 "Berücksichtige Sarkasmus, Ironie, Kontext und andere linguistische Merkmale.\n"
                 "Gib deine Begründung strukturiert wie folgt an:\n"
                 "Begründung: <deine ausführliche Begründung hier>\n\n"
@@ -77,7 +69,7 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
                 "{\n"
                 "  \"OeNB\": \"positiv|neutral|negativ\"\n"
                 "}\n"
-                "Keine weiteren Erklärungen außer der strukturierten Begründung und dem finalen JSON-Objekt.\n\n"
+                "Keine weiteren Erklärungen außer der Analyse und dem finalen JSON-Objekt.\n\n"
                 f"Text:\n{text}"
             )
 
@@ -94,10 +86,10 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
 
                 if not json_match or not begruendung_match:
                     raise ValueError("Begründung oder JSON-Objekt fehlt in der Antwort.")
-
+                
                 sentiment_result = json.loads(json_match.group(0))
                 begruendung = begruendung_match.group(1).strip()
-
+                
             except Exception as e:
                 logger.error("Fehler bei Dokument %s: %s | Antwort: %s", doc_id, e, gpt_answer)
                 continue
@@ -112,7 +104,7 @@ def main(aspects=["OeNB"], collections_to_process=["derStandard", "Krone", "ORF"
                     {"$set": {"features.absa.method3_3.overall_sentiment": sentiment_result,
                               "features.absa.method3_3.grund": begruendung}}
                 )
-                logger.info("Sentiment und Begründung für Dokument %s gespeichert.", doc_id)
+                logger.info("Sentiment für Dokument %s gespeichert: %s", doc_id, sentiment_result)
             except Exception as e:
                 logger.error("Fehler beim Speichern für Dokument %s: %s", doc_id, e)
 

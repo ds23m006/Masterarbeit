@@ -122,10 +122,10 @@ Diese Methode verwendet Large Language Models (LLMs), um die Meinungen in den Te
 
 **main_3_2:**
 
-- Aufforderung auf reasoning
+- reasoning (ohne Abspeichern der Begründung)
 
 **main_3_3:**
 
-- Aufforderung auf reasoning
-- nur auf Paragraphen, wo die Entität erwähnt wird
+- reasoning
+- anderes Prompting
 - Begründung wird mitgespeichert.
